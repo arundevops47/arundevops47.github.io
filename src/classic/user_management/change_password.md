@@ -1,0 +1,4 @@
+# Changing Password
+Users are able to change their own passwords (unless their account is “protected”). This can be done by clicking on “My Account”, and then typing the new password in the “Password” and “Confirm Password” fields, then clicking “Update User”.
+
+Changing the password automatically invalidates all logged in sessions and hence the user will be required to re-login. Invalidating existing sessions is very useful in the case where a user going onto a computer, logs into MantisHub and leaves the computer without logging out. By changing the password from another computer, the session on the original computer automatically becomes invalidated.

@@ -1,0 +1,106 @@
+# Sample workflow for building and deploying a VitePress site to GitHub Pages
+#
+name: Deploy VitePress site to Pages
+
+on:
+  # Runs on pushes targeting the `main` branch. Change this to `master` if you're
+  # using the `master` branch as the default branch.
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  # Build modern job
+  build-modern:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Setup Pages for Modern
+        uses: actions/configure-pages@v4
+      - name: Install dependencies
+        run: npm ci
+      - name: Build Modern
+        run: |
+          npm run build:modern
+          touch src/modern/.vitepress/dist/.nojekyll
+      - name: Upload Modern Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: src/modern/.vitepress/dist
+
+  # Build classic job
+  build-classic:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Setup Pages for Classic
+        uses: actions/configure-pages@v4
+      - name: Install dependencies
+        run: npm ci
+      - name: Build Classic
+        run: |
+          npm run build:classic
+          touch src/classic/.vitepress/dist/.nojekyll
+      - name: Upload Classic Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: src/classic/.vitepress/dist
+          name: classic-site-${{ github.run_id }}
+
+  # Deployment modern job
+  deploy-modern:
+    environment:
+      name: github-pages
+      url: https://support.mantishub.com
+    needs: build-modern
+    runs-on: ubuntu-latest
+    name: Deploy Modern
+    steps:
+      - name: Deploy Modern to GitHub Pages
+        id: deployment-modern
+        uses: actions/deploy-pages@v4
+        with:
+          path: src/modern/.vitepress/dist
+
+  # Deployment classic job
+  deploy-classic:
+    environment:
+      name: github-pages
+      url: https://classic.mantishub.com
+    needs: build-classic
+    runs-on: ubuntu-latest
+    name: Deploy Classic
+    steps:
+      - name: Deploy Classic to GitHub Pages
+        id: deployment-classic
+        uses: actions/deploy-pages@v4
+        with:
+          path: src/classic/.vitepress/dist

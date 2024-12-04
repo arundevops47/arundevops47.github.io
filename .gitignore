@@ -1,0 +1,13 @@
+
+.DS_Store
+src/.vitepress/dist
+src/.vitepress/cache
+.vitepress/dist
+.vitepress/cache
+node_modules
+.DS_Store
+.env
+src/modern/.vitepress/dist
+src/modern/.vitepress/cache
+src/classic/.vitepress/dist
+src/classic/.vitepress/cache
