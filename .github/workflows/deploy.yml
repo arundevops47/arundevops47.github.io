@@ -119,7 +119,7 @@ jobs:
             rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/modern/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/
           else
             echo "Modern build output directory missing. Skipping deployment."
-            exit 1
+            exit 1                                         
           fi
 
       - name: Deploy Classic Files
