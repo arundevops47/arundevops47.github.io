@@ -1,4 +1,4 @@
-name: Deploy VitePress Site to Pages and Server
+name: Deploy VitePress site to Pages and Server
 
 on:
   push:
@@ -15,7 +15,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Build classic and modern versions
   build:
     runs-on: ubuntu-latest
     steps:
@@ -30,23 +29,59 @@ jobs:
           cache: npm
       - name: Install Dependencies
         run: npm ci
-      - name: Build Classic Version
-        run: |
-          npm run build:classic
-          touch src/classic/.vitepress/dist/.nojekyll
       - name: Build Modern Version
         run: |
           npm run build:modern
           touch src/modern/.vitepress/dist/.nojekyll
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          name: github-pages
+          path: src/modern/.vitepress/dist
+      - name: Build Classic Version
+        run: npm run build:classic
+      - name: Upload Modern Artifact for Server
+        uses: actions/upload-artifact@v4
+        with:
+          name: modern-build
+          path: src/modern/.vitepress/dist
+      - name: Upload Classic Artifact for Server
+        uses: actions/upload-artifact@v4
+        with:
+          name: classic-build
+          path: src/classic/.vitepress/dist
 
-  # Rsync Classic and Modern Versions to Server
-  deploy-to-server:
+  deploy-pages:
+    environment:
+      name: github-pages
+      url: https://support.mantishub.com
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
+
+  deploy-server:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Download Modern Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: modern-build
+          path: modern-dist
+      - name: Download Classic Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: classic-build
+          path: classic-dist
       - name: Set up SSH Key and Agent
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SERVER_DEPLOY_KEY }}
@@ -56,34 +91,18 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           eval $(ssh-agent -s)
           ssh-add ~/.ssh/id_rsa
-
       - name: Add Server to Known Hosts
         run: |
           if ! ssh-keygen -F ${{ vars.SERVER_IP }} > /dev/null; then
             ssh-keyscan -H ${{ vars.SERVER_IP }} >> ~/.ssh/known_hosts
           fi
           chmod 600 ~/.ssh/known_hosts
-
-      - name: Deploy Classic Files to Server
+      - name: Create Deployment Directories
         run: |
-          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /var/www/classic && sudo chown -R forge:forge /var/www/classic"
-          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/classic/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/
-
-      - name: Deploy Modern Files to Server
+          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /var/www/modern /var/www/classic && sudo chown -R forge:forge /var/www"
+      - name: Deploy Modern Files
         run: |
-          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /var/www/modern && sudo chown -R forge:forge /var/www/modern"
-          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/modern/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/
-
-  # Publish Modern Version to GitHub Pages
-  deploy-modern-to-pages:
-    needs: build
-    environment:
-      name: github-pages
-      url: https://support.mantishub.com
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy Modern to GitHub Pages
-        id: deployment-modern
-        uses: actions/deploy-pages@v4
-        with:
-          path: src/modern/.vitepress/dist
+          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete modern-dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/
+      - name: Deploy Classic Files
+        run: |
+          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete classic-dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/
