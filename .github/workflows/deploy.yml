@@ -68,6 +68,7 @@ jobs:
   deploy-to-server:
     needs: build-modern
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -79,6 +80,11 @@ jobs:
         run: npm ci
       - name: Build Classic Version
         run: npm run build:classic
+      - name: Add Server to known_hosts Dynamically
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ vars.SERVER_IP }} >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
       - name: Deploy Modern and Classic to Server via SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SERVER_DEPLOY_KEY }}
@@ -87,6 +93,6 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           # Deploy Modern Version
-          scp -r src/modern/.vitepress/dist/* forge@54.68.225.99:/var/www/modern
+          scp -r src/modern/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/modern
           # Deploy Classic Version
-          scp -r src/classic/.vitepress/dist/* forge@54.68.225.99:/var/www/classic
+          scp -r src/classic/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/classic
