@@ -54,8 +54,6 @@ jobs:
       - name: Deploy Modern to GitHub Pages
         id: deployment-modern
         uses: actions/deploy-pages@v4
-        with:
-          path: src/modern/.vitepress/dist
 
   deploy-to-server:
     needs: build-modern
@@ -110,7 +108,7 @@ jobs:
           rsync -e "ssh -o StrictHostKeyChecking=no" -avz src/modern/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/
           rsync -e "ssh -o StrictHostKeyChecking=no" -avz src/classic/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/
 
-      - name: Configure Nginx and SSL
+      - name: Configure Nginx
         run: |
           ssh -tt forge@${{ vars.SERVER_IP }} << 'EOF'
           # Ensure Directories Exist
@@ -151,16 +149,22 @@ jobs:
           CONFIG'
           sudo ln -sf /etc/nginx/sites-available/classic.mantishub.com /etc/nginx/sites-enabled/
 
-          # Reload Nginx
+          # Test and Reload Nginx
           sudo nginx -t
           sudo systemctl reload nginx
+          EOF
 
-          # Install SSL Certificates
+      - name: Install SSL Certificates
+        run: |
+          ssh -tt forge@${{ vars.SERVER_IP }} << 'EOF'
           sudo apt-get update
           sudo apt-get install -y certbot python3-certbot-nginx
           sudo certbot --nginx -d modern.mantishub.com --non-interactive --agree-tos -m arundevops47@gmail.com
           sudo certbot --nginx -d classic.mantishub.com --non-interactive --agree-tos -m arundevops47@gmail.com
+          EOF
 
-          # Verify SSL Renewal
+      - name: Verify SSL Renewal
+        run: |
+          ssh -tt forge@${{ vars.SERVER_IP }} << 'EOF'
           sudo certbot renew --dry-run
           EOF
