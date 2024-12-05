@@ -128,3 +128,47 @@ jobs:
             echo "Classic build output directory missing. Skipping deployment."
             exit 1
           fi
+
+      - name: Configure Nginx
+        run: |
+          ssh -tt forge@${{ vars.SERVER_IP }} << 'EOF'
+          sudo tee /etc/nginx/sites-available/modern.mantishub.com > /dev/null << CONFIG
+          server {
+              server_name modern.mantishub.com;
+              root /var/www/modern;
+
+              index index.html;
+
+              location / {
+                  try_files \$uri \$uri/ =404;
+              }
+
+              listen 80;
+          }
+          CONFIG
+          sudo ln -sf /etc/nginx/sites-available/modern.mantishub.com /etc/nginx/sites-enabled/
+
+          sudo tee /etc/nginx/sites-available/classic.mantishub.com > /dev/null << CONFIG
+          server {
+              server_name classic.mantishub.com;
+              root /var/www/classic;
+
+              index index.html;
+
+              location / {
+                  try_files \$uri \$uri/ =404;
+              }
+
+              listen 80;
+          }
+          CONFIG
+          sudo ln -sf /etc/nginx/sites-available/classic.mantishub.com /etc/nginx/sites-enabled/
+
+          # Test and Reload Nginx
+          if sudo nginx -t; then
+            sudo systemctl reload nginx
+          else
+            echo "Nginx configuration test failed."
+            exit 1
+          fi
+          EOF
