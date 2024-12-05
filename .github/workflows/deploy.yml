@@ -141,9 +141,9 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{
                   "domain": "modern.mantishub.com",
-                  "project_type": "php",
+                  "project_type": "html",
                   "directory": "/var/www/modern",
-                  "php_version": "php8.0"
+                  "php_version": null
                 }'
 
           curl -X POST "https://forge.laravel.com/api/v1/servers/${{ vars.FORGE_SERVER_ID }}/sites" \
@@ -151,9 +151,9 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{
                   "domain": "classic.mantishub.com",
-                  "project_type": "php",
+                  "project_type": "html",
                   "directory": "/var/www/classic",
-                  "php_version": "php8.0"
+                  "php_version": null
                 }'
 
       - name: Enable SSL via Forge API
