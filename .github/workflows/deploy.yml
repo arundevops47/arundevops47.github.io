@@ -73,13 +73,12 @@ jobs:
       - name: Set up SSH Key and Agent
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SERVER_DEPLOY_KEY }}
-          SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
         run: |
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           eval $(ssh-agent -s)
-          echo "$SSH_PASSPHRASE" | ssh-add ~/.ssh/id_rsa
+          ssh-add ~/.ssh/id_rsa
       - name: Add Server to known_hosts Dynamically
         run: |
           ssh-keyscan -H ${{ vars.SERVER_IP }} >> ~/.ssh/known_hosts
