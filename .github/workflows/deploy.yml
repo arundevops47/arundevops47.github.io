@@ -15,8 +15,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Build modern and classic versions
-  build:
+  # Build modern version for GitHub Pages
+  build-modern:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -30,16 +30,14 @@ jobs:
           cache: npm
       - name: Install Dependencies
         run: npm ci
-      - name: Build Modern and Classic Versions
+      - name: Build Modern Version
         run: |
           npm run build:modern
-          npm run build:classic
           touch src/modern/.vitepress/dist/.nojekyll
-          touch src/classic/.vitepress/dist/.nojekyll
-      - name: Debug Build Outputs
+      - name: Debug Build Output
         run: |
+          echo "Checking dist folder for modern build"
           ls -R src/modern/.vitepress/dist || echo "Modern build output directory not found"
-          ls -R src/classic/.vitepress/dist || echo "Classic build output directory not found"
       - name: Upload Modern Artifact
         uses: actions/upload-pages-artifact@v3
         with:
