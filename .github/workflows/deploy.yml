@@ -78,16 +78,6 @@ jobs:
           ls -R src/modern || echo "src/modern directory not found"
           ls -R src/classic || echo "src/classic directory not found"
 
-      - name: Build Modern and Classic Versions
-        run: |
-          npm run build:modern
-          npm run build:classic
-
-      - name: Debug Build Outputs
-        run: |
-          ls -R src/modern/.vitepress/dist || echo "Modern build output directory not found"
-          ls -R src/classic/.vitepress/dist || echo "Classic build output directory not found"
-
       - name: Set up SSH Key and Agent
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SERVER_DEPLOY_KEY }}
