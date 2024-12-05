@@ -36,6 +36,10 @@ jobs:
           npm run build:classic
           touch src/modern/.vitepress/dist/.nojekyll
           touch src/classic/.vitepress/dist/.nojekyll
+      - name: Debug Build Outputs
+        run: |
+          ls -R src/modern/.vitepress/dist || echo "Modern build output directory not found"
+          ls -R src/classic/.vitepress/dist || echo "Classic build output directory not found"
       - name: Upload Modern Artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -43,24 +47,46 @@ jobs:
 
   # Deploy modern version to GitHub Pages
   deploy-modern:
-    needs: build
     environment:
       name: github-pages
       url: https://support.mantishub.com
+    needs: build-modern
     runs-on: ubuntu-latest
     steps:
       - name: Deploy Modern to GitHub Pages
         id: deployment-modern
         uses: actions/deploy-pages@v4
 
-  # Deploy to server
   deploy-to-server:
-    needs: build
+    needs: build-modern
     runs-on: ubuntu-latest
     environment: production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Debug Directories
+        run: |
+          ls -R src/modern || echo "src/modern directory not found"
+          ls -R src/classic || echo "src/classic directory not found"
+
+      - name: Build Modern and Classic Versions
+        run: |
+          npm run build:modern
+          npm run build:classic
+
+      - name: Debug Build Outputs
+        run: |
+          ls -R src/modern/.vitepress/dist || echo "Modern build output directory not found"
+          ls -R src/classic/.vitepress/dist || echo "Classic build output directory not found"
 
       - name: Set up SSH Key and Agent
         env:
@@ -79,12 +105,28 @@ jobs:
           fi
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Deploy Modern Files
+      - name: Create Modern Directory
         run: |
           ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /var/www/modern && sudo chown -R forge:forge /var/www/modern"
-          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/modern/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/
+
+      - name: Create Classic Directory
+        run: |
+          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /var/www/classic && sudo chown -R forge:forge /var/www/classic"
+
+      - name: Deploy Modern Files
+        run: |
+          if [ -d "src/modern/.vitepress/dist" ]; then
+            rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/modern/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/
+          else
+            echo "Modern build output directory missing. Skipping deployment."
+            exit 1
+          fi
 
       - name: Deploy Classic Files
         run: |
-          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /var/www/classic && sudo chown -R forge:forge /var/www/classic"
-          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/classic/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/
+          if [ -d "src/classic/.vitepress/dist" ]; then
+            rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/classic/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/
+          else
+            echo "Classic build output directory missing. Skipping deployment."
+            exit 1
+          fi
