@@ -52,6 +52,17 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Debug Classic Directory
+        run: |
+          ls -R src/classic/.vitepress/dist || echo "Classic build output directory not found"
+
+      - name: Verify Classic Build Output
+        run: |
+          if [ ! -d "src/classic/.vitepress/dist" ]; then
+            echo "Classic build output directory is missing. Exiting."
+            exit 1
+          fi
+
       - name: Set up SSH Key and Agent
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SERVER_DEPLOY_KEY }}
