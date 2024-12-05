@@ -87,6 +87,6 @@ jobs:
       - name: Deploy Modern and Classic to Server via SSH
         run: |
           # Deploy Modern Version
-          scp -r src/modern/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/modern
+          scp -v -r src/modern/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/modern
           # Deploy Classic Version
-          scp -r src/classic/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/classic
+          scp -v -r src/classic/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/classic
