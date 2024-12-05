@@ -33,21 +33,24 @@ jobs:
         run: |
           npm run build:modern
           touch src/modern/.vitepress/dist/.nojekyll
-      - name: Build Classic Version
-        run: |
-          npm run build:classic
-      - name: Upload Modern Artifact
+      - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          name: modern-build-${{ github.run_id }}
+          name: github-pages
           path: src/modern/.vitepress/dist
-      - name: Upload Classic Artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Build Classic Version
+        run: npm run build:classic
+      - name: Upload Modern Artifact for Server
+        uses: actions/upload-artifact@v4
         with:
-          name: classic-build-${{ github.run_id }}
+          name: modern-build
+          path: src/modern/.vitepress/dist
+      - name: Upload Classic Artifact for Server
+        uses: actions/upload-artifact@v4
+        with:
+          name: classic-build
           path: src/classic/.vitepress/dist
 
-  # Deploy both versions to GitHub Pages
   deploy-pages:
     environment:
       name: github-pages
@@ -55,10 +58,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy Modern to GitHub Pages
+      - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
 
-  # Deploy to production server
   deploy-server:
     needs: build
     runs-on: ubuntu-latest
@@ -66,10 +68,20 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Download Modern Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: modern-build
+          path: modern-dist
+      - name: Download Classic Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: classic-build
+          path: classic-dist
       - name: Set up SSH Key and Agent
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SERVER_DEPLOY_KEY }}
@@ -90,7 +102,7 @@ jobs:
           ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /var/www/modern /var/www/classic && sudo chown -R forge:forge /var/www"
       - name: Deploy Modern Files
         run: |
-          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/modern/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/
+          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete modern-dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/
       - name: Deploy Classic Files
         run: |
-          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/classic/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/
+          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete classic-dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/
