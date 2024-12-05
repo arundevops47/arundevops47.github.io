@@ -105,12 +105,12 @@ jobs:
 
       - name: Deploy Files
         run: |
-          rsync -e "ssh -o StrictHostKeyChecking=no" -avz src/modern/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/
-          rsync -e "ssh -o StrictHostKeyChecking=no" -avz src/classic/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/
+          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/modern/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/ || echo "Failed to sync Modern files"
+          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/classic/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/ || echo "Failed to sync Classic files"
 
       - name: Configure Nginx
         run: |
-          ssh -tt forge@${{ vars.SERVER_IP }} << 'EOF'
+          ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=5 -tt forge@${{ vars.SERVER_IP }} << 'EOF'
           # Ensure Directories Exist
           sudo mkdir -p /var/www/modern /var/www/classic
           sudo chown -R forge:forge /var/www/modern /var/www/classic
@@ -150,15 +150,21 @@ jobs:
           sudo ln -sf /etc/nginx/sites-available/classic.mantishub.com /etc/nginx/sites-enabled/
 
           # Test and Reload Nginx
-          sudo nginx -t
-          sudo systemctl reload nginx
+          if sudo nginx -t; then
+              sudo systemctl reload nginx
+          else
+              echo "Nginx configuration test failed. Skipping reload."
+              exit 1
+          fi
           EOF
 
       - name: Install SSL Certificates
         run: |
           ssh -tt forge@${{ vars.SERVER_IP }} << 'EOF'
           sudo apt-get update
-          sudo apt-get install -y certbot python3-certbot-nginx
+          if ! command -v certbot &> /dev/null; then
+              sudo apt-get install -y certbot python3-certbot-nginx
+          fi
           sudo certbot --nginx -d modern.mantishub.com --non-interactive --agree-tos -m arundevops47@gmail.com
           sudo certbot --nginx -d classic.mantishub.com --non-interactive --agree-tos -m arundevops47@gmail.com
           EOF
