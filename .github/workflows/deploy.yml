@@ -33,7 +33,6 @@ jobs:
       - name: Build Modern Version
         run: |
           npm run build:modern
-          echo "support.mantishub.com" > src/modern/.vitepress/dist/CNAME
           touch src/modern/.vitepress/dist/.nojekyll
       - name: Upload Modern Artifact
         uses: actions/upload-pages-artifact@v3
@@ -85,5 +84,7 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
       - name: Deploy Modern and Classic to Server via SSH
         run: |
+          # Deploy Modern Version
+          scp -v -r src/modern/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/modern
           # Deploy Classic Version
           scp -v -r src/classic/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/classic
