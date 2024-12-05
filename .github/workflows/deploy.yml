@@ -34,6 +34,10 @@ jobs:
         run: |
           npm run build:modern
           touch src/modern/.vitepress/dist/.nojekyll
+      - name: Debug Build Output
+        run: |
+          echo "Checking dist folder for modern build"
+          ls -R src/modern/.vitepress/dist || echo "Modern build output directory not found"
       - name: Upload Modern Artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -69,6 +73,10 @@ jobs:
         run: npm ci
       - name: Build Classic Version
         run: npm run build:classic
+      - name: Debug Build Output for Classic
+        run: |
+          echo "Checking dist folder for classic build"
+          ls -R src/classic/.vitepress/dist || echo "Classic build output directory not found"
       - name: Set up SSH Key and Agent
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SERVER_DEPLOY_KEY }}
@@ -85,6 +93,16 @@ jobs:
       - name: Deploy Modern and Classic to Server via SSH
         run: |
           # Deploy Modern Version
-          scp -v -r src/modern/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/modern
+          if [ -d "src/modern/.vitepress/dist" ]; then
+            scp -v -r src/modern/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/modern
+          else
+            echo "Modern build output directory missing. Skipping deployment."
+            exit 1
+          fi
           # Deploy Classic Version
-          scp -v -r src/classic/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/classic
+          if [ -d "src/classic/.vitepress/dist" ]; then
+            scp -v -r src/classic/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/classic
+          else
+            echo "Classic build output directory missing. Skipping deployment."
+            exit 1
+          fi
