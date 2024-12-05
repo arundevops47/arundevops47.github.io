@@ -109,63 +109,57 @@ jobs:
           ssh-keyscan -H ${{ vars.SERVER_IP }} >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Deploy Modern and Classic to Server via SSH
+      - name: Deploy Files and Configure Server
         run: |
-          # Ensure the target directories exist
-          ssh forge@${{ vars.SERVER_IP }} "mkdir -p /var/www/modern /var/www/classic"
+          ssh forge@${{ vars.SERVER_IP }} << 'EOF'
+          # Deploy files
+          mkdir -p /var/www/modern /var/www/classic
+          rsync -avz src/modern/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/
+          rsync -avz src/classic/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/
 
-          # Deploy Modern Version
-          if [ -d "src/modern/.vitepress/dist" ]; then
-            echo "Deploying Modern Version..."
-            scp -v -r src/modern/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/modern
-          else
-            echo "Modern build output directory missing. Skipping deployment."
-            exit 1
-          fi
+          # Configure Nginx for Modern
+          sudo bash -c 'cat > /etc/nginx/sites-available/modern.mantishub.com << CONFIG
+          server {
+              server_name modern.mantishub.com;
+              root /var/www/modern;
 
-          # Deploy Classic Version
-          if [ -d "src/classic/.vitepress/dist" ]; then
-            echo "Deploying Classic Version..."
-            scp -v -r src/classic/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/classic
-          else
-            echo "Classic build output directory missing. Skipping deployment."
-            exit 1
-          fi
+              index index.html;
 
-      - name: Configure Virtual Hosts via Forge API
-        env:
-          FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
-        run: |
-          curl -X POST "https://forge.laravel.com/api/v1/servers/${{ vars.FORGE_SERVER_ID }}/sites" \
-            -H "Authorization: Bearer $FORGE_API_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{
-                  "domain": "modern.mantishub.com",
-                  "project_type": "html",
-                  "directory": "/var/www/modern",
-                  "php_version": null
-                }'
+              location / {
+                  try_files \$uri \$uri/ =404;
+              }
 
-          curl -X POST "https://forge.laravel.com/api/v1/servers/${{ vars.FORGE_SERVER_ID }}/sites" \
-            -H "Authorization: Bearer $FORGE_API_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{
-                  "domain": "classic.mantishub.com",
-                  "project_type": "html",
-                  "directory": "/var/www/classic",
-                  "php_version": null
-                }'
+              listen 80;
+          }
+          CONFIG'
+          sudo ln -sf /etc/nginx/sites-available/modern.mantishub.com /etc/nginx/sites-enabled/
 
-      - name: Enable SSL via Forge API
-        env:
-          FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
-        run: |
-          curl -X POST "https://forge.laravel.com/api/v1/servers/${{ vars.FORGE_SERVER_ID }}/sites/{modern_site_id}/certificates/letsencrypt" \
-            -H "Authorization: Bearer $FORGE_API_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"domains": ["modern.mantishub.com"]}'
+          # Configure Nginx for Classic
+          sudo bash -c 'cat > /etc/nginx/sites-available/classic.mantishub.com << CONFIG
+          server {
+              server_name classic.mantishub.com;
+              root /var/www/classic;
 
-          curl -X POST "https://forge.laravel.com/api/v1/servers/${{ vars.FORGE_SERVER_ID }}/sites/{classic_site_id}/certificates/letsencrypt" \
-            -H "Authorization: Bearer $FORGE_API_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"domains": ["classic.mantishub.com"]}'
+              index index.html;
+
+              location / {
+                  try_files \$uri \$uri/ =404;
+              }
+
+              listen 80;
+          }
+          CONFIG'
+          sudo ln -sf /etc/nginx/sites-available/classic.mantishub.com /etc/nginx/sites-enabled/
+
+          # Reload Nginx
+          sudo nginx -t
+          sudo systemctl reload nginx
+
+          # Install SSL Certificates
+          sudo apt-get install -y certbot python3-certbot-nginx
+          sudo certbot --nginx -d modern.mantishub.com --non-interactive --agree-tos -m arundevops47@gmail.com
+          sudo certbot --nginx -d classic.mantishub.com --non-interactive --agree-tos -m arundevops47@gmail.com
+
+          # Verify SSL Renewal
+          sudo certbot renew --dry-run
+          EOF
