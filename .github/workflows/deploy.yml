@@ -64,6 +64,7 @@ jobs:
         with:
           path: src/modern/.vitepress/dist
 
+
   # Deploy modern and classic versions to the server
   deploy-to-server:
     needs: build-modern
