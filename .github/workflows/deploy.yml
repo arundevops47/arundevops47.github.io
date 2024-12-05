@@ -86,6 +86,10 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ vars.SERVER_IP }} >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
+      - name: Set up SSH Agent
+        run: |
+          eval $(ssh-agent -s)
+          ssh-add ~/.ssh/id_rsa <<< "${{ secrets.SSH_PASSPHRASE }}"
       - name: Deploy Modern and Classic to Server via SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SERVER_DEPLOY_KEY }}
