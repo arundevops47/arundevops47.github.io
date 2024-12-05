@@ -131,3 +131,41 @@ jobs:
             echo "Classic build output directory missing. Skipping deployment."
             exit 1
           fi
+
+      - name: Configure Virtual Hosts via Forge API
+        env:
+          FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
+        run: |
+          curl -X POST "https://forge.laravel.com/api/v1/servers/${{ vars.FORGE_SERVER_ID }}/sites" \
+            -H "Authorization: Bearer $FORGE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+                  "domain": "modern.mantishub.com",
+                  "project_type": "php",
+                  "directory": "/var/www/modern",
+                  "php_version": "php8.0"
+                }'
+
+          curl -X POST "https://forge.laravel.com/api/v1/servers/${{ vars.FORGE_SERVER_ID }}/sites" \
+            -H "Authorization: Bearer $FORGE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+                  "domain": "classic.mantishub.com",
+                  "project_type": "php",
+                  "directory": "/var/www/classic",
+                  "php_version": "php8.0"
+                }'
+
+      - name: Enable SSL via Forge API
+        env:
+          FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
+        run: |
+          curl -X POST "https://forge.laravel.com/api/v1/servers/${{ vars.FORGE_SERVER_ID }}/sites/{modern_site_id}/certificates/letsencrypt" \
+            -H "Authorization: Bearer $FORGE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"domains": ["modern.mantishub.com"]}'
+
+          curl -X POST "https://forge.laravel.com/api/v1/servers/${{ vars.FORGE_SERVER_ID }}/sites/{classic_site_id}/certificates/letsencrypt" \
+            -H "Authorization: Bearer $FORGE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"domains": ["classic.mantishub.com"]}'
