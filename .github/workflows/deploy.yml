@@ -50,7 +50,7 @@ jobs:
     environment:
       name: github-pages
       url: https://support.mantishub.com
-    needs: build-modern
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Deploy Modern to GitHub Pages
