@@ -42,38 +42,12 @@ jobs:
       - name: Build Modern
         run: |
           npm run build:modern
+          echo "support.mantishub.com" > src/modern/.vitepress/dist/CNAME
           touch src/modern/.vitepress/dist/.nojekyll
       - name: Upload Modern Artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: src/modern/.vitepress/dist
-
-  # Build classic job
-  build-classic:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - name: Setup Pages for Classic
-        uses: actions/configure-pages@v4
-      - name: Install dependencies
-        run: npm ci
-      - name: Build Classic
-        run: |
-          npm run build:classic
-          touch src/classic/.vitepress/dist/.nojekyll
-      - name: Upload Classic Artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: src/classic/.vitepress/dist
-          name: classic-site-${{ github.run_id }}
 
   # Deployment modern job
   deploy-modern:
@@ -82,7 +56,7 @@ jobs:
       url: https://support.mantishub.com
     needs: build-modern
     runs-on: ubuntu-latest
-    name: Deploy Modern
+    name: Deploy Modern Version
     steps:
       - name: Deploy Modern to GitHub Pages
         id: deployment-modern
@@ -90,17 +64,29 @@ jobs:
         with:
           path: src/modern/.vitepress/dist
 
-  # Deployment classic job
-  deploy-classic:
-    environment:
-      name: github-pages
-      url: https://classic.mantishub.com
-    needs: build-classic
+  # Deploy modern and classic versions to the server
+  deploy-to-server:
+    needs: build-modern
     runs-on: ubuntu-latest
-    name: Deploy Classic
     steps:
-      - name: Deploy Classic to GitHub Pages
-        id: deployment-classic
-        uses: actions/deploy-pages@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          path: src/classic/.vitepress/dist
+          node-version: 20
+      - name: Install Dependencies
+        run: npm ci
+      - name: Build Classic Version
+        run: npm run build:classic
+      - name: Deploy Modern and Classic to Server via SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SERVER_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          # Deploy Modern Version
+          scp -r src/modern/.vitepress/dist/* user@your-server:/var/www/modern
+          # Deploy Classic Version
+          scp -r src/classic/.vitepress/dist/* user@your-server:/var/www/classic
