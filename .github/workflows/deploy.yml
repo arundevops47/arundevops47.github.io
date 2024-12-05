@@ -1,4 +1,4 @@
-name: Deploy VitePress Site
+name: Deploy VitePress site to Pages and Server
 
 on:
   push:
@@ -11,10 +11,11 @@ permissions:
   id-token: write
 
 concurrency:
-  group: deploy
+  group: pages
   cancel-in-progress: false
 
 jobs:
+  # Build modern and classic versions
   build:
     runs-on: ubuntu-latest
     steps:
@@ -33,6 +34,8 @@ jobs:
         run: |
           npm run build:modern
           npm run build:classic
+          touch src/modern/.vitepress/dist/.nojekyll
+          touch src/classic/.vitepress/dist/.nojekyll
       - name: Debug Build Outputs
         run: |
           ls -R src/modern/.vitepress/dist || echo "Modern build output directory not found"
@@ -42,6 +45,7 @@ jobs:
         with:
           path: src/modern/.vitepress/dist
 
+  # Deploy modern version to GitHub Pages
   deploy-modern:
     needs: build
     environment:
@@ -50,9 +54,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy Modern to GitHub Pages
+        id: deployment-modern
         uses: actions/deploy-pages@v4
 
-  deploy-server:
+  deploy-to-server:
     needs: build
     runs-on: ubuntu-latest
     environment: production
@@ -79,7 +84,17 @@ jobs:
           ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /var/www/modern /var/www/classic && sudo chown -R forge:forge /var/www"
       - name: Deploy Modern Files
         run: |
-          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/modern/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/
+          if [ -d "src/modern/.vitepress/dist" ]; then
+            rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/modern/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/
+          else
+            echo "Modern build output directory missing. Skipping deployment."
+            exit 1
+          fi
       - name: Deploy Classic Files
         run: |
-          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/classic/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/
+          if [ -d "src/classic/.vitepress/dist" ]; then
+            rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/classic/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/
+          else
+            echo "Classic build output directory missing. Skipping deployment."
+            exit 1
+          fi
