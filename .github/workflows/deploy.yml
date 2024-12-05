@@ -69,56 +69,76 @@ jobs:
           node-version: 20
 
       - name: Install Dependencies
-        run: npm ci
+        run: |
+          echo "$(date) - Starting npm ci"
+          npm ci
+          echo "$(date) - Finished npm ci"
 
       - name: Debug Directories
         run: |
-          echo "Checking src/modern and src/classic directories"
+          echo "$(date) - Checking src/modern and src/classic directories"
           ls -R src/modern || echo "src/modern directory not found"
           ls -R src/classic || echo "src/classic directory not found"
+          echo "$(date) - Finished directory check"
 
       - name: Build Modern and Classic Versions
         run: |
+          echo "$(date) - Starting modern build"
           npm run build:modern
+          echo "$(date) - Finished modern build"
+
+          echo "$(date) - Starting classic build"
           npm run build:classic
+          echo "$(date) - Finished classic build"
 
       - name: Debug Build Outputs
         run: |
-          echo "Checking dist folders"
+          echo "$(date) - Checking dist folders"
           ls -R src/modern/.vitepress/dist || echo "Modern build output directory not found"
           ls -R src/classic/.vitepress/dist || echo "Classic build output directory not found"
+          echo "$(date) - Finished checking dist folders"
 
       - name: Set up SSH Key and Agent
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SERVER_DEPLOY_KEY }}
         run: |
+          echo "$(date) - Setting up SSH key"
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           eval $(ssh-agent -s)
           ssh-add ~/.ssh/id_rsa
+          echo "$(date) - Finished setting up SSH key"
 
       - name: Add Server to Known Hosts
         run: |
+          echo "$(date) - Adding server to known_hosts"
           if ! ssh-keygen -F ${{ vars.SERVER_IP }} > /dev/null; then
             ssh-keyscan -H ${{ vars.SERVER_IP }} >> ~/.ssh/known_hosts
           fi
           chmod 600 ~/.ssh/known_hosts
+          echo "$(date) - Finished adding server to known_hosts"
 
       - name: Deploy Files
         run: |
-          timeout 120s rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/modern/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/ || echo "Failed to sync Modern files"
-          timeout 120s rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/classic/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/ || echo "Failed to sync Classic files"
+          echo "$(date) - Starting file deployment for modern"
+          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/modern/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/ || echo "Failed to sync Modern files"
+          echo "$(date) - Finished file deployment for modern"
+
+          echo "$(date) - Starting file deployment for classic"
+          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/classic/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/ || echo "Failed to sync Classic files"
+          echo "$(date) - Finished file deployment for classic"
 
       - name: Configure Nginx
         run: |
+          echo "$(date) - Starting Nginx configuration"
           ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=5 -tt forge@${{ vars.SERVER_IP }} << 'EOF'
-          # Ensure Directories Exist
-          timeout 60s sudo mkdir -p /var/www/modern /var/www/classic
-          timeout 60s sudo chown -R forge:forge /var/www/modern /var/www/classic
+          echo "$(date) - Ensuring directories exist"
+          sudo mkdir -p /var/www/modern /var/www/classic
+          sudo chown -R forge:forge /var/www/modern /var/www/classic
 
-          # Write Nginx Configurations
-          timeout 60s sudo tee /etc/nginx/sites-available/modern.mantishub.com > /dev/null << CONFIG
+          echo "$(date) - Writing Nginx configurations"
+          sudo tee /etc/nginx/sites-available/modern.mantishub.com > /dev/null << CONFIG
           server {
               server_name modern.mantishub.com;
               root /var/www/modern;
@@ -132,9 +152,9 @@ jobs:
               listen 80;
           }
           CONFIG
-          timeout 60s sudo ln -sf /etc/nginx/sites-available/modern.mantishub.com /etc/nginx/sites-enabled/
+          sudo ln -sf /etc/nginx/sites-available/modern.mantishub.com /etc/nginx/sites-enabled/
 
-          timeout 60s sudo tee /etc/nginx/sites-available/classic.mantishub.com > /dev/null << CONFIG
+          sudo tee /etc/nginx/sites-available/classic.mantishub.com > /dev/null << CONFIG
           server {
               server_name classic.mantishub.com;
               root /var/www/classic;
@@ -148,32 +168,35 @@ jobs:
               listen 80;
           }
           CONFIG
-          timeout 60s sudo ln -sf /etc/nginx/sites-available/classic.mantishub.com /etc/nginx/sites-enabled/
+          sudo ln -sf /etc/nginx/sites-available/classic.mantishub.com /etc/nginx/sites-enabled/
 
-          # Test Nginx Configuration and Reload
-          echo "Testing Nginx configuration"
-          if timeout 60s sudo nginx -t; then
-            echo "Reloading Nginx"
-            timeout 60s sudo systemctl reload nginx
+          echo "$(date) - Testing and reloading Nginx"
+          if sudo nginx -t; then
+            sudo systemctl reload nginx
           else
             echo "Nginx configuration test failed. Exiting."
             exit 1
           fi
+          echo "$(date) - Finished Nginx configuration"
           EOF
 
       - name: Install SSL Certificates
         run: |
+          echo "$(date) - Starting SSL certificate installation"
           ssh -tt forge@${{ vars.SERVER_IP }} << 'EOF'
-          timeout 120s sudo apt-get update
+          sudo apt-get update
           if ! command -v certbot &> /dev/null; then
-            timeout 120s sudo apt-get install -y certbot python3-certbot-nginx
+            sudo apt-get install -y certbot python3-certbot-nginx
           fi
-          timeout 120s sudo certbot --nginx -d modern.mantishub.com --non-interactive --agree-tos -m arundevops47@gmail.com
-          timeout 120s sudo certbot --nginx -d classic.mantishub.com --non-interactive --agree-tos -m arundevops47@gmail.com
+          sudo certbot --nginx -d modern.mantishub.com --non-interactive --agree-tos -m arundevops47@gmail.com
+          sudo certbot --nginx -d classic.mantishub.com --non-interactive --agree-tos -m arundevops47@gmail.com
+          echo "$(date) - Finished SSL certificate installation"
           EOF
 
       - name: Verify SSL Renewal
         run: |
+          echo "$(date) - Starting SSL renewal verification"
           ssh -tt forge@${{ vars.SERVER_IP }} << 'EOF'
-          timeout 60s sudo certbot renew --dry-run
+          sudo certbot renew --dry-run
+          echo "$(date) - Finished SSL renewal verification"
           EOF
