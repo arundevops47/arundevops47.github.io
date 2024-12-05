@@ -57,7 +57,6 @@ jobs:
         with:
           path: src/modern/.vitepress/dist
 
-  # Deploy modern and classic versions to the server
   deploy-to-server:
     needs: build-modern
     runs-on: ubuntu-latest
@@ -65,22 +64,36 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
+
       - name: Install Dependencies
         run: npm ci
-      - name: Debug src/classic Directory
+
+      - name: Debug src/modern Directory
         run: |
-          echo "Checking src/classic directory"
-          ls -R src/classic || echo "src/classic directory not found"        
+          echo "Checking src/modern directory"
+          ls -R src/modern || echo "src/modern directory not found"
+
+      - name: Build Modern Version
+        run: npm run build:modern
+
+      - name: Debug Build Output for Modern
+        run: |
+          echo "Checking dist folder for modern build"
+          ls -R src/modern/.vitepress/dist || echo "Modern build output directory not found"
+
       - name: Build Classic Version
         run: npm run build:classic
+
       - name: Debug Build Output for Classic
         run: |
           echo "Checking dist folder for classic build"
           ls -R src/classic/.vitepress/dist || echo "Classic build output directory not found"
+
       - name: Set up SSH Key and Agent
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SERVER_DEPLOY_KEY }}
@@ -90,25 +103,26 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           eval $(ssh-agent -s)
           ssh-add ~/.ssh/id_rsa
+
       - name: Add Server to known_hosts Dynamically
         run: |
           ssh-keyscan -H ${{ vars.SERVER_IP }} >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
-      - name: Check src/classic Directory
-        run: |
-          echo "Checking src/classic directory"
-          ls -R src/classic || echo "src/classic directory not found"          
+
       - name: Deploy Modern and Classic to Server via SSH
         run: |
           # Deploy Modern Version
           if [ -d "src/modern/.vitepress/dist" ]; then
+            echo "Deploying Modern Version..."
             scp -v -r src/modern/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/modern
           else
             echo "Modern build output directory missing. Skipping deployment."
             exit 1
           fi
+
           # Deploy Classic Version
           if [ -d "src/classic/.vitepress/dist" ]; then
+            echo "Deploying Classic Version..."
             scp -v -r src/classic/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/classic
           else
             echo "Classic build output directory missing. Skipping deployment."
