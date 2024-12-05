@@ -73,25 +73,21 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Debug src/modern Directory
+      - name: Debug Directories
         run: |
-          echo "Checking src/modern directory"
+          echo "Checking src/modern and src/classic directories"
           ls -R src/modern || echo "src/modern directory not found"
+          ls -R src/classic || echo "src/classic directory not found"
 
-      - name: Build Modern Version
-        run: npm run build:modern
-
-      - name: Debug Build Output for Modern
+      - name: Build Modern and Classic Versions
         run: |
-          echo "Checking dist folder for modern build"
+          npm run build:modern
+          npm run build:classic
+
+      - name: Debug Build Outputs
+        run: |
+          echo "Checking dist folders"
           ls -R src/modern/.vitepress/dist || echo "Modern build output directory not found"
-
-      - name: Build Classic Version
-        run: npm run build:classic
-
-      - name: Debug Build Output for Classic
-        run: |
-          echo "Checking dist folder for classic build"
           ls -R src/classic/.vitepress/dist || echo "Classic build output directory not found"
 
       - name: Set up SSH Key and Agent
@@ -104,34 +100,22 @@ jobs:
           eval $(ssh-agent -s)
           ssh-add ~/.ssh/id_rsa
 
-      - name: Add Server to known_hosts Dynamically
+      - name: Add Server to Known Hosts
         run: |
           ssh-keyscan -H ${{ vars.SERVER_IP }} >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Deploy Files and Configure Server
+      - name: Deploy Files
         run: |
-          ssh forge@${{ vars.SERVER_IP }} << 'EOF'
-          # Deploy files
-          mkdir -p /var/www/modern /var/www/classic
+          rsync -e "ssh -o StrictHostKeyChecking=no" -avz src/modern/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/
+          rsync -e "ssh -o StrictHostKeyChecking=no" -avz src/classic/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/
 
-          # Deploy Modern Version
-          if [ -d "src/modern/.vitepress/dist" ]; then
-            echo "Deploying Modern Version..."
-            scp -v -r src/modern/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/modern
-          else
-            echo "Modern build output directory missing. Skipping deployment."
-            exit 1
-          fi
-
-          # Deploy Classic Version
-          if [ -d "src/classic/.vitepress/dist" ]; then
-            echo "Deploying Classic Version..."
-            scp -v -r src/classic/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/classic
-          else
-            echo "Classic build output directory missing. Skipping deployment."
-            exit 1
-          fi
+      - name: Configure Nginx and SSL
+        run: |
+          ssh -tt forge@${{ vars.SERVER_IP }} << 'EOF'
+          # Ensure Directories Exist
+          sudo mkdir -p /var/www/modern /var/www/classic
+          sudo chown -R forge:forge /var/www/modern /var/www/classic
 
           # Configure Nginx for Modern
           sudo bash -c 'cat > /etc/nginx/sites-available/modern.mantishub.com << CONFIG
@@ -172,6 +156,7 @@ jobs:
           sudo systemctl reload nginx
 
           # Install SSL Certificates
+          sudo apt-get update
           sudo apt-get install -y certbot python3-certbot-nginx
           sudo certbot --nginx -d modern.mantishub.com --non-interactive --agree-tos -m arundevops47@gmail.com
           sudo certbot --nginx -d classic.mantishub.com --non-interactive --agree-tos -m arundevops47@gmail.com
