@@ -100,7 +100,9 @@ jobs:
 
       - name: Add Server to Known Hosts
         run: |
-          ssh-keyscan -H ${{ vars.SERVER_IP }} >> ~/.ssh/known_hosts
+          if ! ssh-keygen -F ${{ vars.SERVER_IP }} > /dev/null; then
+            ssh-keyscan -H ${{ vars.SERVER_IP }} >> ~/.ssh/known_hosts
+          fi
           chmod 600 ~/.ssh/known_hosts
 
       - name: Deploy Files
@@ -115,8 +117,8 @@ jobs:
           sudo mkdir -p /var/www/modern /var/www/classic
           sudo chown -R forge:forge /var/www/modern /var/www/classic
 
-          # Configure Nginx for Modern
-          sudo bash -c 'cat > /etc/nginx/sites-available/modern.mantishub.com << CONFIG
+          # Write Nginx Configurations
+          sudo tee /etc/nginx/sites-available/modern.mantishub.com > /dev/null << CONFIG
           server {
               server_name modern.mantishub.com;
               root /var/www/modern;
@@ -129,11 +131,10 @@ jobs:
 
               listen 80;
           }
-          CONFIG'
+          CONFIG
           sudo ln -sf /etc/nginx/sites-available/modern.mantishub.com /etc/nginx/sites-enabled/
 
-          # Configure Nginx for Classic
-          sudo bash -c 'cat > /etc/nginx/sites-available/classic.mantishub.com << CONFIG
+          sudo tee /etc/nginx/sites-available/classic.mantishub.com > /dev/null << CONFIG
           server {
               server_name classic.mantishub.com;
               root /var/www/classic;
@@ -146,15 +147,15 @@ jobs:
 
               listen 80;
           }
-          CONFIG'
+          CONFIG
           sudo ln -sf /etc/nginx/sites-available/classic.mantishub.com /etc/nginx/sites-enabled/
 
-          # Test and Reload Nginx
+          # Test Nginx Configuration and Reload
           if sudo nginx -t; then
-              sudo systemctl reload nginx
+            sudo systemctl reload nginx
           else
-              echo "Nginx configuration test failed. Skipping reload."
-              exit 1
+            echo "Nginx configuration test failed. Exiting."
+            exit 1
           fi
           EOF
 
@@ -163,7 +164,7 @@ jobs:
           ssh -tt forge@${{ vars.SERVER_IP }} << 'EOF'
           sudo apt-get update
           if ! command -v certbot &> /dev/null; then
-              sudo apt-get install -y certbot python3-certbot-nginx
+            sudo apt-get install -y certbot python3-certbot-nginx
           fi
           sudo certbot --nginx -d modern.mantishub.com --non-interactive --agree-tos -m arundevops47@gmail.com
           sudo certbot --nginx -d classic.mantishub.com --non-interactive --agree-tos -m arundevops47@gmail.com
