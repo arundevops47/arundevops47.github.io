@@ -58,13 +58,37 @@ jobs:
         uses: actions/deploy-pages@v4
 
   deploy-to-server:
-    needs: build
+    needs: build-modern
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup SSH Key and Agent
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Debug Directories
+        run: |
+          ls -R src/modern || echo "src/modern directory not found"
+          ls -R src/classic || echo "src/classic directory not found"
+
+      - name: Build Modern and Classic Versions
+        run: |
+          npm run build:modern
+          npm run build:classic
+
+      - name: Debug Build Outputs
+        run: |
+          ls -R src/modern/.vitepress/dist || echo "Modern build output directory not found"
+          ls -R src/classic/.vitepress/dist || echo "Classic build output directory not found"
+
+      - name: Set up SSH Key and Agent
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SERVER_DEPLOY_KEY }}
         run: |
@@ -73,15 +97,22 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           eval $(ssh-agent -s)
           ssh-add ~/.ssh/id_rsa
+
       - name: Add Server to Known Hosts
         run: |
           if ! ssh-keygen -F ${{ vars.SERVER_IP }} > /dev/null; then
             ssh-keyscan -H ${{ vars.SERVER_IP }} >> ~/.ssh/known_hosts
           fi
           chmod 600 ~/.ssh/known_hosts
-      - name: Create Directories on Server
+
+      - name: Create Modern Directory
         run: |
-          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /var/www/modern /var/www/classic && sudo chown -R forge:forge /var/www"
+          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /var/www/modern && sudo chown -R forge:forge /var/www/modern"
+
+      - name: Create Classic Directory
+        run: |
+          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /var/www/classic && sudo chown -R forge:forge /var/www/classic"
+
       - name: Deploy Modern Files
         run: |
           if [ -d "src/modern/.vitepress/dist" ]; then
@@ -90,6 +121,7 @@ jobs:
             echo "Modern build output directory missing. Skipping deployment."
             exit 1
           fi
+
       - name: Deploy Classic Files
         run: |
           if [ -d "src/classic/.vitepress/dist" ]; then
