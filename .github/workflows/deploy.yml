@@ -58,7 +58,7 @@ jobs:
         uses: actions/deploy-pages@v4
 
   deploy-to-server:
-    needs: build-modern
+    needs: build
     runs-on: ubuntu-latest
     environment: production
     steps:
