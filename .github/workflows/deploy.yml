@@ -15,7 +15,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Combined build for both modern and classic versions
   build:
     runs-on: ubuntu-latest
     steps:
@@ -37,18 +36,15 @@ jobs:
       - name: Build Classic Version
         run: |
           npm run build:classic
-      - name: Debug Build Outputs
-        run: |
-          echo "Checking dist folders"
-          ls -R src/modern/.vitepress/dist || echo "Modern build output directory not found"
-          ls -R src/classic/.vitepress/dist || echo "Classic build output directory not found"
       - name: Upload Modern Artifact
         uses: actions/upload-pages-artifact@v3
         with:
+          name: modern-build-${{ github.run_id }}
           path: src/modern/.vitepress/dist
       - name: Upload Classic Artifact
         uses: actions/upload-pages-artifact@v3
         with:
+          name: classic-build-${{ github.run_id }}
           path: src/classic/.vitepress/dist
 
   # Deploy both versions to GitHub Pages
