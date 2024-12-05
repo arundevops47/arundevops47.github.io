@@ -1,45 +1,36 @@
-# Sample workflow for building and deploying a VitePress site to GitHub Pages
-#
-name: Deploy VitePress site to Pages
+name: Deploy VitePress site to Pages and Server
 
 on:
-  # Runs on pushes targeting the `main` branch. Change this to `master` if you're
-  # using the `master` branch as the default branch.
   push:
     branches: [main]
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
-  # Build modern job
+  # Build modern version for GitHub Pages
   build-modern:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-      - name: Setup Pages for Modern
-        uses: actions/configure-pages@v4
-      - name: Install dependencies
+      - name: Install Dependencies
         run: npm ci
-      - name: Build Modern
+      - name: Build Modern Version
         run: |
           npm run build:modern
           echo "support.mantishub.com" > src/modern/.vitepress/dist/CNAME
@@ -49,21 +40,19 @@ jobs:
         with:
           path: src/modern/.vitepress/dist
 
-  # Deployment modern job
+  # Deploy modern version to GitHub Pages
   deploy-modern:
     environment:
       name: github-pages
       url: https://support.mantishub.com
     needs: build-modern
     runs-on: ubuntu-latest
-    name: Deploy Modern Version
     steps:
       - name: Deploy Modern to GitHub Pages
         id: deployment-modern
         uses: actions/deploy-pages@v4
         with:
           path: src/modern/.vitepress/dist
-
 
   # Deploy modern and classic versions to the server
   deploy-to-server:
@@ -81,22 +70,21 @@ jobs:
         run: npm ci
       - name: Build Classic Version
         run: npm run build:classic
-      - name: Add Server to known_hosts Dynamically
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ vars.SERVER_IP }} >> ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-      - name: Set up SSH Agent
-        run: |
-          eval $(ssh-agent -s)
-          ssh-add ~/.ssh/id_rsa <<< "${{ secrets.SSH_PASSPHRASE }}"
-      - name: Deploy Modern and Classic to Server via SSH
+      - name: Set up SSH Key and Agent
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SERVER_DEPLOY_KEY }}
         run: |
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+          eval $(ssh-agent -s)
+          ssh-add ~/.ssh/id_rsa
+      - name: Add Server to known_hosts Dynamically
+        run: |
+          ssh-keyscan -H ${{ vars.SERVER_IP }} >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Deploy Modern and Classic to Server via SSH
+        run: |
           # Deploy Modern Version
           scp -r src/modern/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/modern
           # Deploy Classic Version
