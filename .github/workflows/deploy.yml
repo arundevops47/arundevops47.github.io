@@ -111,6 +111,9 @@ jobs:
 
       - name: Deploy Modern and Classic to Server via SSH
         run: |
+          # Ensure the target directories exist
+          ssh forge@${{ vars.SERVER_IP }} "mkdir -p /var/www/modern /var/www/classic"
+          
           # Deploy Modern Version
           if [ -d "src/modern/.vitepress/dist" ]; then
             echo "Deploying Modern Version..."
