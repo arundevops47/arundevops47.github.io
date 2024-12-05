@@ -114,8 +114,24 @@ jobs:
           ssh forge@${{ vars.SERVER_IP }} << 'EOF'
           # Deploy files
           mkdir -p /var/www/modern /var/www/classic
-          rsync -avz src/modern/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/
-          rsync -avz src/classic/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/
+
+          # Deploy Modern Version
+          if [ -d "src/modern/.vitepress/dist" ]; then
+            echo "Deploying Modern Version..."
+            scp -v -r src/modern/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/modern
+          else
+            echo "Modern build output directory missing. Skipping deployment."
+            exit 1
+          fi
+
+          # Deploy Classic Version
+          if [ -d "src/classic/.vitepress/dist" ]; then
+            echo "Deploying Classic Version..."
+            scp -v -r src/classic/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/classic
+          else
+            echo "Classic build output directory missing. Skipping deployment."
+            exit 1
+          fi
 
           # Configure Nginx for Modern
           sudo bash -c 'cat > /etc/nginx/sites-available/modern.mantishub.com << CONFIG
