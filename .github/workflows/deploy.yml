@@ -85,7 +85,5 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
       - name: Deploy Modern and Classic to Server via SSH
         run: |
-          # Deploy Modern Version
-          scp -v -r src/modern/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/modern
           # Deploy Classic Version
           scp -v -r src/classic/.vitepress/dist/* forge@${{ vars.SERVER_IP }}:/var/www/classic
