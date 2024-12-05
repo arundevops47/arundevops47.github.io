@@ -107,18 +107,18 @@ jobs:
 
       - name: Deploy Files
         run: |
-          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/modern/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/ || echo "Failed to sync Modern files"
-          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/classic/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/ || echo "Failed to sync Classic files"
+          timeout 120s rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/modern/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/ || echo "Failed to sync Modern files"
+          timeout 120s rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/classic/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/ || echo "Failed to sync Classic files"
 
       - name: Configure Nginx
         run: |
           ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=5 -tt forge@${{ vars.SERVER_IP }} << 'EOF'
           # Ensure Directories Exist
-          sudo mkdir -p /var/www/modern /var/www/classic
-          sudo chown -R forge:forge /var/www/modern /var/www/classic
+          timeout 60s sudo mkdir -p /var/www/modern /var/www/classic
+          timeout 60s sudo chown -R forge:forge /var/www/modern /var/www/classic
 
           # Write Nginx Configurations
-          sudo tee /etc/nginx/sites-available/modern.mantishub.com > /dev/null << CONFIG
+          timeout 60s sudo tee /etc/nginx/sites-available/modern.mantishub.com > /dev/null << CONFIG
           server {
               server_name modern.mantishub.com;
               root /var/www/modern;
@@ -132,9 +132,9 @@ jobs:
               listen 80;
           }
           CONFIG
-          sudo ln -sf /etc/nginx/sites-available/modern.mantishub.com /etc/nginx/sites-enabled/
+          timeout 60s sudo ln -sf /etc/nginx/sites-available/modern.mantishub.com /etc/nginx/sites-enabled/
 
-          sudo tee /etc/nginx/sites-available/classic.mantishub.com > /dev/null << CONFIG
+          timeout 60s sudo tee /etc/nginx/sites-available/classic.mantishub.com > /dev/null << CONFIG
           server {
               server_name classic.mantishub.com;
               root /var/www/classic;
@@ -148,11 +148,13 @@ jobs:
               listen 80;
           }
           CONFIG
-          sudo ln -sf /etc/nginx/sites-available/classic.mantishub.com /etc/nginx/sites-enabled/
+          timeout 60s sudo ln -sf /etc/nginx/sites-available/classic.mantishub.com /etc/nginx/sites-enabled/
 
           # Test Nginx Configuration and Reload
-          if sudo nginx -t; then
-            sudo systemctl reload nginx
+          echo "Testing Nginx configuration"
+          if timeout 60s sudo nginx -t; then
+            echo "Reloading Nginx"
+            timeout 60s sudo systemctl reload nginx
           else
             echo "Nginx configuration test failed. Exiting."
             exit 1
@@ -162,16 +164,16 @@ jobs:
       - name: Install SSL Certificates
         run: |
           ssh -tt forge@${{ vars.SERVER_IP }} << 'EOF'
-          sudo apt-get update
+          timeout 120s sudo apt-get update
           if ! command -v certbot &> /dev/null; then
-            sudo apt-get install -y certbot python3-certbot-nginx
+            timeout 120s sudo apt-get install -y certbot python3-certbot-nginx
           fi
-          sudo certbot --nginx -d modern.mantishub.com --non-interactive --agree-tos -m arundevops47@gmail.com
-          sudo certbot --nginx -d classic.mantishub.com --non-interactive --agree-tos -m arundevops47@gmail.com
+          timeout 120s sudo certbot --nginx -d modern.mantishub.com --non-interactive --agree-tos -m arundevops47@gmail.com
+          timeout 120s sudo certbot --nginx -d classic.mantishub.com --non-interactive --agree-tos -m arundevops47@gmail.com
           EOF
 
       - name: Verify SSL Renewal
         run: |
           ssh -tt forge@${{ vars.SERVER_IP }} << 'EOF'
-          sudo certbot renew --dry-run
+          timeout 60s sudo certbot renew --dry-run
           EOF
