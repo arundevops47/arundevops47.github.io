@@ -91,7 +91,8 @@ jobs:
           git fetch origin gh-pages || true
           git checkout gh-pages || git checkout --orphan gh-pages
           rm -rf *
-          cp -R src/modern/.vitepress/dist/* .
+          mkdir -p src/modern/.vitepress/dist
+          cp -R src/modern/.vitepress/dist/* . || echo "No files to copy"
           touch .nojekyll
           git add .
           git commit -m "Deploy modern site" || true
