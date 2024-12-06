@@ -50,12 +50,14 @@ jobs:
           npm run build:modern
           touch src/modern/.vitepress/dist/.nojekyll
 
+      # Upload Artifacts
       - name: Upload Modern Artifact for Server
         uses: actions/upload-artifact@v4
         with:
           name: modern-build
           path: src/modern/.vitepress/dist
 
+      # Upload Pages Artifact
       - name: Upload Pages Artifact for GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
