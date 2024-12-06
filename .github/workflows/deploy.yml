@@ -68,7 +68,7 @@ jobs:
       # Create Classic Directory
       - name: Create Classic Directory on Server
         run: |
-          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /home/forge/classic.mantishub.com"
+          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /home/forge/classic.mantishub.com && sudo chown -R forge:forge /home/forge"
 
       # rsync Classic to Server
       - name: Deploy Classic Files
@@ -82,7 +82,7 @@ jobs:
       # Create Modern Directory
       - name: Create Modern Directory on Server
         run: |
-          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /home/forge/modern.mantishub.com"
+          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /home/forge/modern.mantishub.com && sudo chown -R forge:forge /home/forge"
 
       # rsync Modern to Server
       - name: Deploy Modern Files
