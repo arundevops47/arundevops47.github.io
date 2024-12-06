@@ -15,9 +15,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build_and_deploy:
+  build:
     runs-on: ubuntu-latest
-    environment: production
     steps:
       # Checkout Code
       - name: Checkout Code
@@ -35,7 +34,42 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      # Set up SSH for Server Deployment
+      # Build Classic
+      - name: Build Classic Version
+        run: npm run build:classic
+
+      - name: Upload Classic Artifact for Server
+        uses: actions/upload-artifact@v4
+        with:
+          name: classic-build
+          path: src/classic/.vitepress/dist
+
+      # Build Modern
+      - name: Build Modern Version
+        run: |
+          npm run build:modern
+          touch src/modern/.vitepress/dist/.nojekyll
+
+      - name: Upload Modern Artifact for Server
+        uses: actions/upload-artifact@v4
+        with:
+          name: modern-build
+          path: src/modern/.vitepress/dist
+
+      - name: Upload Pages Artifact for GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          name: github-pages
+          path: src/modern/.vitepress/dist
+
+  deploy-server:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
       - name: Set up SSH Key and Agent
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SERVER_DEPLOY_KEY }}
@@ -46,7 +80,6 @@ jobs:
           eval $(ssh-agent -s)
           ssh-add ~/.ssh/id_rsa
 
-      # Add Server to Known Hosts
       - name: Add Server to Known Hosts
         run: |
           if ! ssh-keyscan -H ${{ vars.SERVER_IP }} >> ~/.ssh/known_hosts; then
@@ -54,46 +87,36 @@ jobs:
           fi
           chmod 600 ~/.ssh/known_hosts
 
-      # Build Classic
-      - name: Build Classic
-        run: npm run build:classic
+      - name: Download Modern Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: modern-build
+          path: modern-dist
 
-      - name: Create Classic Directory on Server
+      - name: Download Classic Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: classic-build
+          path: classic-dist
+
+      - name: Create Deployment Directories on Server
         run: |
-          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /var/www/classic && sudo chown -R forge:forge /var/www"
+          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /var/www/modern /var/www/classic && sudo chown -R forge:forge /var/www"
 
-      # rsync Classic to Server
-      - name: Deploy Classic Files
+      - name: Deploy Modern Files to Server
         run: |
-          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/classic/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/
+          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete modern-dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/
 
-      # Build Modern
-      - name: Build Modern
-        run: npm run build:modern
-
-      - name: Create Modern Directory on Server
+      - name: Deploy Classic Files to Server
         run: |
-          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /var/www/modern && sudo chown -R forge:forge /var/www"
+          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete classic-dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/
 
-      # rsync Modern to Server
-      - name: Deploy Modern Files
-        run: |
-          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/modern/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/
-
-      # Publish Modern to GitHub Pages by pushing to gh-pages branch
-      - name: Configure Git for Pages
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Deploy Modern to GitHub Pages
-        run: |
-          git fetch origin gh-pages || true
-          git checkout gh-pages || git checkout --orphan gh-pages
-          rm -rf *
-          mkdir -p src/modern/.vitepress/dist
-          cp -R src/modern/.vitepress/dist/* . || echo "No files to copy"
-          touch .nojekyll
-          git add .
-          git commit -m "Deploy modern site" || true
-          git push origin gh-pages --force
+  deploy-pages:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: https://support.mantishub.com
+    steps:
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
