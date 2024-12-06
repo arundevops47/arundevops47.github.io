@@ -17,6 +17,7 @@ concurrency:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+    environment: production
     steps:
       # Checkout Code
       - name: Checkout Code
@@ -47,10 +48,8 @@ jobs:
 
       # Add Server to Known Hosts
       - name: Add Server to Known Hosts
-        env:
-          SERVER_IP: ${{ vars.SERVER_IP }}
         run: |
-          if ! ssh-keyscan -H ${SERVER_IP} >> ~/.ssh/known_hosts; then
+          if ! ssh-keyscan -H ${{ vars.SERVER_IP }} >> ~/.ssh/known_hosts; then
             echo "Failed to add server to known hosts"
           fi
           chmod 600 ~/.ssh/known_hosts
@@ -60,10 +59,8 @@ jobs:
         run: npm run build:classic
 
       - name: Create Classic Directory on Server
-        env:
-          SERVER_IP: ${{ vars.SERVER_IP }}      
         run: |
-          ssh forge@${SERVER_IP} "sudo mkdir -p /var/www/classic && sudo chown -R forge:forge /var/www"
+          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /var/www/classic && sudo chown -R forge:forge /var/www"
 
       # rsync Classic to Server
       - name: Deploy Classic Files
