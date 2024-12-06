@@ -58,6 +58,7 @@ jobs:
       - name: Build Classic
         run: npm run build:classic
 
+      # Create Classic Directory
       - name: Create Classic Directory on Server
         run: |
           ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /var/www/classic && sudo chown -R forge:forge /var/www"
@@ -71,6 +72,7 @@ jobs:
       - name: Build Modern
         run: npm run build:modern
 
+      # Create Modern Directory
       - name: Create Modern Directory on Server
         run: |
           ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /var/www/modern && sudo chown -R forge:forge /var/www"
