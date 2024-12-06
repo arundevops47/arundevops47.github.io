@@ -60,8 +60,10 @@ jobs:
         run: npm run build:classic
 
       - name: Create Classic Directory on Server
+        env:
+          SERVER_IP: ${{ vars.SERVER_IP }}      
         run: |
-          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /var/www/classic && sudo chown -R forge:forge /var/www"
+          ssh forge@${SERVER_IP} "sudo mkdir -p /var/www/classic && sudo chown -R forge:forge /var/www"
 
       # rsync Classic to Server
       - name: Deploy Classic Files
