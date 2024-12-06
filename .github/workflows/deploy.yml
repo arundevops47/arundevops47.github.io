@@ -45,6 +45,14 @@ jobs:
           eval $(ssh-agent -s)
           ssh-add ~/.ssh/id_rsa
 
+      # Add Server to Known Hosts
+      - name: Add Server to Known Hosts
+        run: |
+          if ! ssh-keygen -F ${{ vars.SERVER_IP }} > /dev/null; then
+            ssh-keyscan -H ${{ vars.SERVER_IP }} >> ~/.ssh/known_hosts
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
       # Build Classic
       - name: Build Classic
         run: npm run build:classic
