@@ -39,6 +39,11 @@ jobs:
           eval $(ssh-agent -s)
           ssh-add ~/.ssh/id_rsa
 
+      # Debug Server IP
+      - name: Debug Server IP
+        run: echo "Server IP is: ${{ vars.SERVER_IP }}"
+
+      # Add Server to Known Hosts
       - name: Add Server to Known Hosts
         run: |
           if ! ssh-keygen -F ${{ vars.SERVER_IP }} > /dev/null; then
