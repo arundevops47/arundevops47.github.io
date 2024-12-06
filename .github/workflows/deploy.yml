@@ -68,12 +68,12 @@ jobs:
       # Create Classic Directory
       - name: Create Classic Directory on Server
         run: |
-          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /var/www/classic && sudo chown -R forge:forge /var/www"
+          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /home/forge/classic.mantishub.com"
 
       # rsync Classic to Server
       - name: Deploy Classic Files
         run: |
-          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/classic/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/classic/
+          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/classic/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/home/forge/classic.mantishub.com/
 
       # Build Modern
       - name: Build Modern
@@ -82,12 +82,12 @@ jobs:
       # Create Modern Directory
       - name: Create Modern Directory on Server
         run: |
-          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /var/www/modern && sudo chown -R forge:forge /var/www"
+          ssh forge@${{ vars.SERVER_IP }} "sudo mkdir -p /home/forge/modern.mantishub.com"
 
       # rsync Modern to Server
       - name: Deploy Modern Files
         run: |
-          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/modern/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/var/www/modern/
+          rsync -e "ssh -o StrictHostKeyChecking=no" -avz --delete src/modern/.vitepress/dist/ forge@${{ vars.SERVER_IP }}:/home/forge/modern.mantishub.com/
 
       # Upload Pages Artifact
       - name: Upload Pages Artifact for GitHub Pages
