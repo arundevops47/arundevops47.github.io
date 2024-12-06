@@ -1,15 +1,22 @@
 name: Deploy VitePress site to Pages and Server
 
+# Trigger the workflow on specific events
 on:
   push:
     branches: [main]
+  # Allow manual triggering of the workflow via the GitHub Actions UI
   workflow_dispatch:
 
+# Define permissions for the workflow
 permissions:
+  # Allow the workflow to read repository contents, such as branches and commits
   contents: read
+  # Grant the workflow write access to GitHub Pages for deployment
   pages: write
+  # Enable the workflow to request an ID token, required for authentication in some workflows
   id-token: write
 
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -89,6 +96,7 @@ jobs:
           name: github-pages
           path: src/modern/.vitepress/dist
 
+  # Deployment to GitHub Pages
   deploy-pages:
     needs: build
     runs-on: ubuntu-latest
