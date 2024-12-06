@@ -20,6 +20,12 @@ export default defineConfig({
     search: {
       provider: "local",
     },
+    footer: {
+      message:
+        "MantisHub might just be the ticket tracking tool you have been waiting for. It's lovingly handcrafted in Seattle",
+      copyright:
+        "MantisHub LLC. | Copyright 2015 - 2023 © All Rights Reserved.",
+    },    
     sidebar: [
       {
         text: "Getting Started",
